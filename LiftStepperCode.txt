@@ -1,0 +1,32 @@
+#include <Arduino.h>
+#include <AccelStepper.h>
+const int STEP = 20;
+const int DIR = 9;
+AccelStepper mystepper(1,STEP,DIR);
+int DIRState = LOW;
+int val;
+int maxSpeed = 300;
+bool invert = true;
+void setup() {
+// put your setup code here, to run once:
+Serial.begin(9600);
+mystepper.setMaxSpeed(maxSpeed);
+}
+void loop() {
+// put your main code here, to run repeatedly:
+if (Serial.available() > 0){
+if (invert == true){
+invert = false;
+mystepper.setPinsInverted(invert);
+}
+else{
+invert = true;
+mystepper.setPinsInverted(invert);
+}
+Serial.read();
+}
+val = analogRead(0);
+val = map(val,0,1023, 0, maxSpeed);
+mystepper.setSpeed(val);
+mystepper.runSpeed();
+}

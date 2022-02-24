@@ -33,8 +33,12 @@
 // default settings gyro  245 d/s, accel = 2g, mag = 4G
 LSM9DS1 imu;
 
-int head;
-int last_head = 0;
+//Variables for smoothing
+const int numReadings = 10;
+int readings[numReadings];      // the readings from the analog input
+int readIndex = 0;              // the index of the current reading
+int total = 0;                  // the running total
+int average = 0;                // the average
 
 // VERY IMPORTANT!
 //These are the previously determined offsets and scale factors for accelerometer and magnetometer, using MPU9250_cal and Magneto
@@ -71,7 +75,7 @@ float declination = -13.6;
 */
 float p[] = {0, 1, 0};  //Y marking on sensor board points toward yaw = 0
 
-#define PRINT_SPEED 300 // ms between prints
+#define PRINT_SPEED 100 // ms between prints
 static unsigned long lastPrint = 0; // Keep track of print time
 
 // basic vector operations
@@ -150,6 +154,10 @@ void setup()
 
   Wire.begin();
 
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
+  }
+
   if (imu.begin() == false) // with no arguments, this uses default addresses (AG:0x6B, M:0x1E) and i2c port (Wire).
   {
     Serial.println(F("LSM9DS1 not detected"));
@@ -175,22 +183,27 @@ void loop()
     
     Axyz[0] = -Axyz[0]; //fix accel handedness
     
-    Serial.print(Axyz[0]);
-    Serial.print(", ");
-    Serial.print(Axyz[1]);
-    Serial.print(", ");
-    Serial.print(Axyz[2]);
-    Serial.print(", ");
-    Serial.print(Mxyz[0]);
-    Serial.print(", ");
-    Serial.print(Mxyz[1]);
-    Serial.print(", ");
-    Serial.println(Mxyz[2]);
     //  get heading in degrees
-    head = (last_head + get_heading(Axyz, Mxyz, p))/2;
-    last_head = head;
+    // subtract the last reading:
+    total = total - readings[readIndex];
+    // read from the sensor:
+    readings[readIndex] = get_heading(Axyz, Mxyz, p);
+    // add the reading to the total:
+    total = total + readings[readIndex];
+    // advance to the next position in the array:
+    readIndex = readIndex + 1;
+
+    // if we're at the end of the array...
+    if (readIndex >= numReadings) {
+      // ...wrap around to the beginning:
+      readIndex = 0;
+    }
+
+    // calculate the average:
+    average = total / numReadings;
 
     Serial.print("Heading: ");
+    Serial.println(average);
     Serial.println(get_heading(Axyz, Mxyz, p));
     lastPrint = millis(); // Update lastPrint time    
   }

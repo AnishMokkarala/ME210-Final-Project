@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <AccelStepper.h>
 
 /*---------------Pin Numbers----------------*/
 #define SPIN_PIN_DIR 9
@@ -7,9 +8,12 @@
 #define ENABLE2 A9//input to EN pin of LEFT MOTOR
 #define IN1 0//input to IN1
 #define IN2 1//input to IN2
-#define IN3 2
-#define IN4 5
-
+#define IN3 2//input to IN3
+#define IN4 5//input to IN4
+#define PIN_STEP 3//pinStep for Stepper Motor
+#define PIN_DIR 4 //pinDirection for Stepper Motor
+#define LIM1 13//top limit switch
+#define LIM2 20//bottom limit switch
 /*---------------State Definitions--------------------------*/
 typedef enum {
     WAITING, LOADING, MOVE, TURN, ALIGN, SCORING
@@ -27,6 +31,8 @@ int turns=0;
 int hdes=0;
 int head=0;
 int b=0; //backup counter
+AccelStepper myStepper1(1,PIN_STEP,PIN_DIR);//stepper object
+int maxspeed=300;//maximum speed of stepper in steps/sec
 
 /*---------------Function Declarations----------------*/
 void checkGlobalEvents(void);
@@ -63,6 +69,8 @@ void setup() {
   pinMode(IN2, OUTPUT);
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
+  pinMode(LIM1,INPUT);
+  pinMode(LIM2,INPUT);
     
   // initialize interval timers here
 
@@ -70,6 +78,8 @@ void setup() {
   currentTime = millis();
   digitalWrite(SPIN_PIN_DIR, spinDir);
   digitalWrite(SPIN_PIN_EN, spinEnable);
+  myStepper1.setMaxSpeed(maxspeed);
+  myStepper1.setSpeed(maxspeed);
 }
 
 /*---------------Main Loop----------------*/
@@ -119,7 +129,8 @@ void loop() {
         if (line1() == HIGH && line2() == HIGH){
           if(rev==0){
             motorsStill();
-            raiseStepper();
+            myStepper1.setPinsInverted(true);
+            myStepper1.runSpeed();
             robot_state=SCORING;
             rev=1;
           }
@@ -130,10 +141,12 @@ void loop() {
         } 
         break;
     case SCORING:
-        if (digitalRead(Lim1)==HIGH){
-          lowerStepper();
+        if (digitalRead(LIM1)==HIGH){
+          myStepper1.setPinsInverted(false);
+          myStepper1.runSpeed();
           backUpTimer.begin(backUp,1000);          
         }
+        else myStepper1.runSpeed();//keep running stepper motor if the Lim1 is not triggered
         break;
     default:
         //wheel_state = STILL; // turn wheels off
@@ -147,11 +160,11 @@ void checkGlobalEvents(void){
   // watch for 2min10s timer
   // red vs blue team
   // read potentiometer input for motor speed determination
-  if (digitalRead(Lim2)==HIGH){
-          lowerStepper(stop); //my stepper class
+  if (digitalRead(LIM2)==LOW && robot_state!= SCORING){
+          myStepper1.runSpeed();
+  }
 }
-
-void spinFlap(void) {
+void spinFlap(void){
   if (spinEnable == 0) {
     spinEnable = 1;
     digitalWrite(SPIN_PIN_EN, spinEnable); // begin spinning motor if not already spinning
@@ -192,16 +205,17 @@ void motorsTurn(int v1,int v2,int feedback,int speed){
 }
 
 void backUp(void){
-    if (b == 0){
-      motorsStraight(LOW,LOW);
-      b++;
-    }
-    else if (b == 1){
-      backUpTimer.end();
-      hdes=180;
-      motorsTurn(LOW,HIGH);
-      turns=1;
-      robot_state=TURN;
-    }  
+  if (b == 0){
+    motorsStraight(LOW,LOW);
+    b++;
+  }
+  else if (b == 1){
+    backUpTimer.end();
+    hdes=180;
+    motorsTurn(LOW,HIGH);
+    turns=1;
+    robot_state=TURN;
+    b=0;
+  }  
 
 }

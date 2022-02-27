@@ -120,6 +120,12 @@ float p[] = {0, 1, 0};  //Y marking on sensor board points toward yaw = 0
 /*---------------Setup Code----------------*/
 void setup() {
   Serial.begin(9600);
+  while (!Serial); //wait for connection
+  Wire.begin();
+
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
+  }
 
   // initialize all states here
   robot_state = WAITING;

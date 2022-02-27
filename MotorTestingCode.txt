@@ -1,0 +1,64 @@
+#include <Arduino.h>
+
+#define ENABLE1 A8//input to EN pin of RIGHT MOTOR
+#define ENABLE2 A9//input to EN pin of LEFT MOTOR
+#define IN1 0//input to IN1
+#define IN2 1//input to IN2
+#define IN3 2//input to IN3
+#define IN4 5//input to IN4
+
+int currentTime=0;
+int val=HIGH;
+
+void motorsStraight(int v1, int v2, int speed=255);
+void motorsStill(void);
+void motorsTurn(int v1,int v2,int feedback=100,int speed=128);
+
+void setup() {
+  // put your setup code here, to run once:
+  pinMode(ENABLE1, OUTPUT);
+  pinMode(ENABLE2, OUTPUT);
+  pinMode(IN1, OUTPUT);
+  pinMode(IN2, OUTPUT);
+  pinMode(IN3, OUTPUT);
+  pinMode(IN4, OUTPUT);
+  pinMode(13,OUTPUT);
+
+  currentTime=millis();
+}
+
+void loop() {
+  // put your main code here, to run repeatedly:
+  if(millis()-currentTime==2000)motorsStraight(HIGH,HIGH,150);
+  if(millis()-currentTime==4000){
+    motorsStraight(LOW,LOW,150);
+    digitalWrite(13,val);
+    currentTime=millis();
+    val=!val;
+  }
+}
+
+void motorsStraight(int v1, int v2, int speed){
+  analogWrite(ENABLE1,speed);
+  analogWrite(ENABLE2,speed);
+  digitalWrite(IN1,v1);
+  digitalWrite(IN2,!v1);
+  digitalWrite(IN3,v2);
+  digitalWrite(IN4,!v2);
+}
+
+void motorsStill(void){
+  digitalWrite(IN1,LOW);//or HIGH
+  digitalWrite(IN2,LOW);//or HIGH
+  digitalWrite(IN3,LOW);
+  digitalWrite(IN4,LOW);
+}
+
+void motorsTurn(int v1,int v2,int feedback,int speed){
+  analogWrite(ENABLE1,speed+feedback);
+  analogWrite(ENABLE2,speed-feedback);
+  digitalWrite(IN1,v1);
+  digitalWrite(IN2,!v1);
+  digitalWrite(IN3,v2);
+  digitalWrite(IN4,!v2);
+}

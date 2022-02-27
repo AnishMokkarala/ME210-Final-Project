@@ -60,9 +60,9 @@ void checkGlobalEvents(void);
 void waitToStart(void);
 void spinFlap(void);
 void motorsStraight(int v1, int v2, int speed=255);
-/* values of v1 & v2 determine the direction of rotation of the motors.
-v1=HIGH & v2=LOW, bot moves forward
-v1=LOW & v2=HIGH, bot moves backward
+/* values of v1 & v2 determine the direction of rotation of the two motors respectively.
+v1=HIGH & v2=HIGH, bot moves forward
+v1=LOW & v2=LOW, bot moves backward
 speed is read from the potentiometer on the bot*/
 void motorsStill(void);
 void motorsTurn(int v1,int v2,int feedback=100,int speed=128);

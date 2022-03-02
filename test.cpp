@@ -20,26 +20,28 @@ int total = 0;                  // the running total
 int average = 0;                // the average
 elapsedMillis moveTime;
 elapsedMillis readTime;
+elapsedMillis collect;
+elapsedMillis lastPrint;
 
 
 
 //Accel scale 16457.0 to normalize
 float A_B[3]
-{ -246.74, -120.47,  367.43};
+ { -275.01, -145.96,  -70.21};
 
 float A_Ainv[3][3]
-  {{  1.01970, -0.00939, -0.01908},
-  { -0.00939,  1.03893,  0.04052},
-  { -0.01908,  0.04052,  0.96038}};
+ {{  0.99256, -0.00172, -0.00608},
+  { -0.00172,  0.99285, -0.00552},
+  { -0.00608, -0.00552,  0.99686}};
 
 //Mag scale 3746.0 to normalize
 float M_B[3]
-{ 4367.11,-1386.71,  407.03};
+{ 3654.70,-1224.89,-1901.08};
 
 float M_Ainv[3][3]
-  {{  1.64553,  0.03192, -0.01789},
-  {  0.03192,  1.66456, -0.01590},
-  { -0.01789, -0.01590,  1.82269}};
+{{  3.33911, -0.00764,  0.42076},
+  { -0.00764,  3.39214, -0.00599},
+  {  0.42076, -0.00599,  4.61207}};
 
 // local magnetic declination in degrees
 float declination = -13.6;
@@ -49,20 +51,24 @@ float p[] = {0, 1, 0};  //Y marking on sensor board points toward yaw = 0
 
 int currentTime=0;
 int val=HIGH;
-int head;
+float head;
 int hdes = 90;
 int rev = 2;
-int head_off = 90;
+int head_off = 0;
 int inst = 0;
-int time = 0;
-int move = false;
+unsigned int time = 100;
+int move = true;
 int k = 10;
-elapsedMillis LastPrint;
+int off;
+float Gz;
+float dt = 30;
 
+float Gscale = (M_PI / 180.0) * 0.00875; //245 dps scale sensitivity = 8.75 mdps/LSB
+int G_offset[3] = {-72, 132, -600};
 
 void motorsStraight(int v1, int v2, int speed=255);
 void motorsStill(void);
-void motorsTurn(int v1,int v2,int feedback=100,int speed=100);
+void motorsTurn(int v1,int v2,int feedback=0,int speed=180);
 void vector_cross(float a[3], float b[3], float out[3]);
 float vector_dot(float a[3], float b[3]);
 void vector_normalize(float a[3]);
@@ -72,13 +78,8 @@ int final_heading(void);
 
 
 void setup() {
-  //Serial.begin(9600);
+  Serial.begin(9600);
   //while (!Serial); //wait for connection
-  Wire.begin();
-
-  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
-    readings[thisReading] = 0;
-  }
 
   // put your setup code here, to run once:
   pinMode(ENABLE1, OUTPUT);
@@ -88,7 +89,13 @@ void setup() {
   pinMode(IN3, OUTPUT);
   pinMode(IN4, OUTPUT);
   pinMode(13,OUTPUT);
+  motorsStill();
 
+  Wire.begin();
+
+  for (int thisReading = 0; thisReading < numReadings; thisReading++) {
+    readings[thisReading] = 0;
+  }
   currentTime=millis();
 
  	if (imu.begin() == false) // with no arguments, this uses default addresses (AG:0x6B, M:0x1E) and i2c port (Wire).
@@ -96,58 +103,80 @@ void setup() {
     //Serial.println(F("LSM9DS1 not detected"));
     while (1);
   }
+  
+  
+  // while(collect<1000){
+  //   head = final_heading();
+  // }
+  //head_off = 180-final_heading();
+  collect = 0;
+  head=0.0;
 
-  head_off = final_heading()+90;
+  motorsTurn(HIGH,LOW);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
-  head = final_heading();// - head_off;
+  if ( imu.gyroAvailable() ) imu.readGyro();
 
-  if (readTime>300 && move == false){
-    time = k*(head-hdes);
-    motorsTurn(HIGH,LOW);
-    moveTime=0;
-    move = true;
+  Gz = Gscale * (float(imu.gz) - G_offset[2]);
+
+  if (lastPrint>dt){
+    if (Gz > 0.02 || Gz < -0.02) {
+      head = head+ 61.2*Gz*dt/1000;
+    }
+    lastPrint=0;
+  }
+  Serial.println(head);
+
+  if (abs(head) > 90){
+    motorsStill();
   }
 
-  if (moveTime>time){
-    motorsStill(); 
-    readTime=0;
-    move = false;
-  }
-  if (LastPrint>100){
-    //Serial.println(head);
-    //Serial.println(hdes);
-    LastPrint = 0;
-  }
+  // if (Gz>0){
+  //   Serial.println(imu.gz);
+  // }
+
+  //put your main code here, to run repeatedly:
+  // while(collect<3000){
+  //   head = final_heading();
+  //   off = head;
+  // }
+  // head_off = 180-off;
+
+  // if (lastPrint>200){
+  //   Serial.println(head);
+  //   lastPrint = 0;
+  // }
+  // head = final_heading();// - head_off;
+  // //Serial.println(head_off);
+  // if (readTime>400 && move == false){
+  //   time = k*abs(head-hdes);
+  //   //Serial.println(time);
+  //   if (head>hdes+3){
+  //     //Serial.println(1);
+  //     motorsTurn(HIGH,HIGH);
+  //   }
+  //   else if (head<hdes-3){
+  //     //Serial.println(2);
+
+  //     motorsTurn(LOW,LOW);
+  //   }  
+  //   moveTime=0;
+  //   move = true;
+  // }
+
+  // if (moveTime>time && move == true){
+  //   motorsStill();
+  //   //Serial.println(time);
+
+  //   readTime=0;
+  //   moveTime=0;
+  //   move = false;
+  // }
   
-
-  // if (head>hdes && inst!=2){
-  //   int err = head-hdes;
-  //   motorsStill();
-  //   if (rev==0) motorsTurn(HIGH,HIGH,err);
-  //   else if (rev==1) motorsTurn(LOW,LOW,-1*err);
-  //   inst = 2;
-  // }
-  // else if (head<hdes && inst != 1){
-  //   int err = head-hdes;
-  //   motorsStill();
-  //   if (rev==0) motorsTurn(HIGH,HIGH,-1*err);
-  //   else if (rev==1) motorsTurn(LOW,LOW,err);
-  //   inst = 1;
-  // }
-
-  // if(millis()-currentTime>=5000){
-  //   hdes = hdes;
-  //   motorsStraight(HIGH,LOW,100);
-  //   currentTime=millis();
-  //   rev = 2;
-  //   if (hdes>270) hdes = 0;
-  // }
   // if(head-hdes<3 && head-hdes>-3 ){
-  //   rev=2;
-  //   inst = 0;
+  //   //rev=2;
+  //   //inst = 0;
   //   digitalWrite(13,HIGH);
   // }
   // else{
@@ -214,7 +243,7 @@ int get_heading(float acc[3], float mag[3], float p[3]) {
   
   int heading = round(atan2(vector_dot(W, p), vector_dot(N, p)) * 180 / M_PI + declination);
   heading = -heading; //conventional nav, heading increases North to East
-  heading = (heading + 720)%360; //apply compass wrap
+  heading = (heading + 720 + head_off)%360; //apply compass wrap
   return heading;
 }
 

@@ -307,7 +307,8 @@ void spinFlap(void){
   if (millis() - currentTime > 3000){ // spin for three seconds
     spinEnable = 0; // turn motor off
     digitalWrite(SPIN_PIN_EN, spinEnable);
-    //wheel_state = BWD; // set wheels to move backwards
+    digitalWrite(SPIN_PIN_DIR1, 0); // confirm off
+    digitalWrite(SPIN_PIN_DIR2, 0); // confirm off
     robot_state = MOVE; // begin navigation to drop zone
     motorsStraight(HIGH, HIGH);
   }

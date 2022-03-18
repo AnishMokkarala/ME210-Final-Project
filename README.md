@@ -1,6 +1,5 @@
 # ME210-Final-Project
-# Stanford University
-# Winter 2021-22
+# Stanford University, Winter 2021-22
 Sheep Xpress
 
 -----Project website link------
